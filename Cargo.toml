@@ -1,0 +1,7 @@
+[package]
+name = "biorust"
+version = "0.1.0"
+authors = ["kevinamses"]
+edition = "2018"
+
+[dependencies]
