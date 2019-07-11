@@ -2,6 +2,7 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufReader};
+use std::convert::TryFrom;
 use std::fmt;
 
 pub trait SequenceCollection {
@@ -18,6 +19,37 @@ pub trait Sequence {
     fn write_fasta(&self, path: &str) {}
     fn complement(&self) -> Self::SeqType;
     //fn orfs(&self) -> Vec<Vec<String>>;
+}
+pub enum Nucleotide {
+    A,
+    T,
+    C,
+    G,
+    U,
+}
+impl Into<u8> for Nucleotide {
+    fn into(self) -> u8 {
+        match self {
+            Nucleotide::A => b'A',
+            Nucleotide::T => b'A',
+            Nucleotide::G => b'G',
+            Nucleotide::C => b'C',
+            Nucleotide::U => b'U',
+        }
+    }
+}
+impl TryFrom<u8> for Nucleotide {
+    type Error = &'static str;
+    fn try_from(byte: u8) -> Result<Self, Self::Error> {
+        match byte {
+            b'A' => Ok(Nucleotide::A),
+            b'T' => Ok(Nucleotide::T),
+            b'G' => Ok(Nucleotide::G),
+            b'C' => Ok(Nucleotide::C),
+            b'U' => Ok(Nucleotide::U),
+            _ => Err("Invalide nucleotide base in sequence.")
+        }
+    }
 }
 
 #[derive(Default, Clone)]
