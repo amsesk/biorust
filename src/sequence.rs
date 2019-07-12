@@ -10,15 +10,17 @@ pub trait SequenceCollection {
     type CollectionType;
     fn from_fasta(fasta: File) -> Self::CollectionType;
     fn new() -> Self::CollectionType;
-    fn seqs(&self) -> &Vec<Box<Self::SeqType>>;
+    fn seqs(&self) -> &Vec<Self::SeqType>;
     fn nseqs(&self) -> usize;
 }
 pub trait Sequence {
     type SeqType;
-    fn print_fasta(&self) {}
     fn write_fasta(&self, path: &str) {}
-    fn complement(&self) -> Self::SeqType;
-    //fn orfs(&self) -> Vec<Vec<String>>;
+    fn complement_bytes(&self) -> Self::SeqType;
+    fn complement_rusty(&self) -> Self::SeqType;
+    fn reverse(&self) -> Self::SeqType;
+    fn revcomp(&self) -> Self::SeqType;
+    fn orfs(&self) -> ();
 }
 pub enum Nucleotide {
     A,
@@ -26,15 +28,29 @@ pub enum Nucleotide {
     C,
     G,
     U,
+    N,
+}
+impl Nucleotide {
+    fn complement (self) -> Nucleotide {
+        match self {
+            Nucleotide::A => Nucleotide::T,
+            Nucleotide::T => Nucleotide::A,
+            Nucleotide::G => Nucleotide::C,
+            Nucleotide::C => Nucleotide::G,
+            Nucleotide::U => Nucleotide::A,
+            Nucleotide::N => Nucleotide::N,
+        }
+    }
 }
 impl Into<u8> for Nucleotide {
     fn into(self) -> u8 {
         match self {
             Nucleotide::A => b'A',
-            Nucleotide::T => b'A',
+            Nucleotide::T => b'T',
             Nucleotide::G => b'G',
             Nucleotide::C => b'C',
             Nucleotide::U => b'U',
+            Nucleotide::N => b'N',
         }
     }
 }
@@ -42,11 +58,12 @@ impl TryFrom<u8> for Nucleotide {
     type Error = &'static str;
     fn try_from(byte: u8) -> Result<Self, Self::Error> {
         match byte {
-            b'A' => Ok(Nucleotide::A),
-            b'T' => Ok(Nucleotide::T),
-            b'G' => Ok(Nucleotide::G),
-            b'C' => Ok(Nucleotide::C),
-            b'U' => Ok(Nucleotide::U),
+            b'A' | b'a' => Ok(Nucleotide::A),
+            b'T' | b't' => Ok(Nucleotide::T),
+            b'G' | b'g' => Ok(Nucleotide::G),
+            b'C' | b'c'  => Ok(Nucleotide::C),
+            b'U' | b'u'  => Ok(Nucleotide::U),
+            b'N' | b'n' => Ok(Nucleotide::U),
             _ => Err("Invalide nucleotide base in sequence.")
         }
     }
@@ -59,30 +76,21 @@ pub struct DnaSequence {
 }
 impl DnaSequence {
     pub fn new(header: String, sequence: Vec<u8>) -> Self {
-        let upperseq = sequence
-                        .iter()
-                        .map(|b| b.to_ascii_uppercase())
-                        .collect::<Vec<u8>>();
-        DnaSequence { header, sequence: upperseq }
+        DnaSequence { header, sequence }
     }
 }
 impl Sequence for DnaSequence {
     type SeqType = DnaSequence;
 
-    /*
-    fn print_fasta(&self) {
-        println!(">{}\n{}", self.header, self.sequence.iter().collect());
-    }
     fn write_fasta(&self, path: &str) {
-        let out = format!(">{}\n{}\n", self.header, self.sequence.iter().collect());
+        let out = format!("{}",self);
         let bytes = out.as_bytes();
         let mut buffer = File::create(path.to_string()).expect("Couldn't create file.");
         buffer
             .write_all(&bytes)
             .expect("Could not write fasta file.");
     }
-    */
-    fn complement(&self) -> DnaSequence {
+    fn complement_bytes (&self) -> DnaSequence {
         let pairs = vec![[b'A', b'T'], [b'T', b'A'], [b'C', b'G'], [b'G', b'C'], [b'N', b'N']];
         let complement = self
             .sequence
@@ -96,79 +104,67 @@ impl Sequence for DnaSequence {
             .collect::<Vec<u8>>();
         DnaSequence::new(self.header.clone(), complement)
     }
-
-    /*
-    fn orfs (&self) -> Vec<Vec<String>> {
-        let mut all: Vec<Vec<String>> = vec![vec![], vec![], vec![]];
-        for p in 0..3 {
-            let mut seq: Vec<char> = self.sequence.clone().chars().collect();
-            while seq.len() != 0 {
-                if seq.len() < 3 {
-                    all[p].push(seq.into_iter().collect::<String>());
-                    break;
-                }
-                all[p].push(seq.drain(p..3+p).collect::<String>());
-            }
-        }
-        for i in all.iter() {
-        println!("{:?}\n",i);
-        }
-        all
+    fn complement_rusty (&self) -> DnaSequence {
+        let complement = self
+            .sequence
+            .iter()
+            .map (|byte| Nucleotide::try_from(*byte)
+                .expect("Invalide sequence letter."))
+            .map (|nucl| nucl.complement().into())
+            .collect::<Vec<u8>>();
+        DnaSequence::new(self.header.clone(), complement)
     }
-    */
+    fn reverse (&self) -> DnaSequence {
+        DnaSequence::new(self.header.clone(), self
+            .sequence
+            .iter()
+            .rev()
+            .map(|byte| *byte)
+            .collect::<Vec<u8>>() 
+        )
+    }
+    fn revcomp (&self) -> DnaSequence {
+        self
+            .reverse()
+            .complement_rusty()
+    }
+    fn orfs (&self) -> () {
+        let seq = self.sequence.clone();
+        let test = seq.chunks(3)
+            .map(|c| c.iter()
+                .map(|b| Nucleotide::try_from(*b).expect("bad byte"))
+                .map(|nucl| format!("{}", nucl))
+                .collect::<Vec<String>>())
+            .collect::<Vec<Vec<String>>>();
+        println!("{:?}", test);
+        
+    }
 }
-
-pub struct DnaSequenceVector(pub Vec<Box<DnaSequence>>);
+#[derive(Clone)]
+pub struct DnaSequenceVector(Vec<DnaSequence>);
 impl SequenceCollection for DnaSequenceVector {
     type SeqType = DnaSequence;
     type CollectionType = DnaSequenceVector;
     fn new() -> Self {
         DnaSequenceVector(Vec::new())
     }
-    fn seqs(&self) -> &Vec<Box<DnaSequence>> {
+    fn seqs(&self) -> &Vec<DnaSequence> {
         &self.0
     }
     fn nseqs(&self) -> usize {
         self.0.len()
     }
     fn from_fasta(fasta: File) -> DnaSequenceVector {
-        let mut collector: Vec<Box<DnaSequence>> = Vec::new();
-        for pair in parse_fasta(fasta).into_iter() {
-            collector.push(Box::new(DnaSequence::new(pair.0, pair.1.into_bytes())));
-        }
+        let mut collector: Vec<DnaSequence> = Vec::new(); 
+        let _pushall = parse_fasta(fasta)
+            .into_iter()
+            .for_each(|p| collector
+                .push( DnaSequence::new(p.0, p.1
+                    .into_bytes()
+                    .to_ascii_uppercase() ) ));
         DnaSequenceVector(collector)
     }
 }
-/* generalized with parse_fasta and reimplemented above
-impl SequenceCollection for DnaSequenceVector {
-    type SeqType = DnaSequence;
-    fn readfasta(&mut self, fasta: File) {
-        let mut buffer = BufReader::new(fasta);
-        let mut output: Vec<Box<DnaSequence>> = Vec::new();
-        let mut current_sequence = Box::new(DnaSequence::default());
-        loop {
-            let mut line = String::new();
-            let bytes = buffer.read_line(&mut line).unwrap();
-            if bytes == 0 {
-                output.push(current_sequence.clone());
-                break;
-            }
-            line = line.replace('\n',"");
-            if line.starts_with(">") {
-                if current_sequence.sequence.len() != 0 {
-                    output.push(current_sequence.clone());
-                }
-                current_sequence.header = line.replace('>',"");
-                current_sequence.sequence.clear();
-            } else {
-                current_sequence.sequence.push_str(&line);
-            }
-        }
-        self.0 = output;
-    }
-}
-*/
-
 // Generic fasta parser that doesn't care what kind of sequence is being read
 #[derive(Default, Clone)]
 pub struct GenericFastaPair(String, String);
@@ -197,11 +193,39 @@ pub fn parse_fasta(fasta: File) -> Vec<GenericFastaPair> {
     collector
 }
 
-/*
 // Display implementations
-impl fmt::Display for DnaSequence {
+impl fmt::Display for Nucleotide {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, ">{}\n{}", self.header, self.sequence)
+        let strrep = match self {
+            Nucleotide::A => "A",
+            Nucleotide::T => "T",
+            Nucleotide::G => "G",
+            Nucleotide::C => "C",
+            Nucleotide::U => "U",
+            Nucleotide::N => "N",
+        };
+        write!(f, "{}", strrep)
     }
 }
-*/
+impl fmt::Display for DnaSequence {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sequence_string = self
+            .sequence
+            .iter()
+            .map(|byte| Nucleotide::try_from(*byte).expect("Invalid sequence character"))
+            .map(|n| format!("{}",n))
+            .collect::<String>();
+        write!(f, ">{}\n{}", self.header, sequence_string)
+    }
+}
+impl fmt::Debug for DnaSequence {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sequence_string = self
+            .sequence
+            .iter()
+            .map(|byte| Nucleotide::try_from(*byte).expect("Invalid sequence character"))
+            .map(|n| format!("{}",n))
+            .collect::<String>();
+        write!(f, ">{}\n{}", self.header, sequence_string)
+    }
+}
