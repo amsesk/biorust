@@ -3,14 +3,12 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-fn main() -> () {
+pub fn main() {
     let mut ranges: Vec<Range> = vec![];
 
     let mut last_range: Option<Range> = None;
 
-    if let Ok(lines) = read_lines(
-        "/run/media/aimzez/3338-3932/work/paraphysoderma/holes/para_ISR_toParsed1_SW1000.tsv",
-    ) {
+    if let Ok(lines) = read_lines("/home/aimzez/dev/biorust/data/para_ISR_toParsed1_SW1000.tsv") {
         for line in lines {
             if let Ok(ip) = line {
                 let spl: Vec<&str> = ip.split('\t').collect();
@@ -26,20 +24,19 @@ fn main() -> () {
 
                 match last_range {
                     Some(r) => {
-                        if r.scaffold != this_scaffold {
+                        // In either case, we have moved on to a new Range and need to push the last Range before creating a new one going forward
+                        // In the first case, we have switched scaffolds,
+                        // In the second case, we are no longer in the same sliding window
+                        //println!("{}, {}", r.stop, range_spl[1]);
+                        if r.scaffold != this_scaffold || range_spl[1] - 1 != r.stop {
                             ranges.push(r);
                             last_range =
                                 Some(Range::new(this_scaffold, range_spl[0], range_spl[1]));
                         } else {
-                            if range_spl[1] - 1 != r.stop {
-                                ranges.push(r);
-                                last_range =
-                                    Some(Range::new(this_scaffold, range_spl[0], range_spl[1]));
-                            } else {
-                                last_range = Some(Range::new(this_scaffold, r.start, r.stop + 1))
-                            }
+                            last_range = Some(Range::new(this_scaffold, r.start, r.stop + 1));
                         }
                     }
+
                     None => {
                         last_range = Some(Range::new(this_scaffold, range_spl[0], range_spl[1]))
                     }
@@ -66,6 +63,10 @@ impl Range {
             start,
             stop,
         }
+    }
+
+    fn increment_stop(&mut self) {
+        self.stop += 1;
     }
 }
 
