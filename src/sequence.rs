@@ -1,9 +1,9 @@
 //use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufReader};
-use std::convert::TryFrom;
-use std::fmt;
 
 pub trait SequenceCollection {
     type SeqType;
@@ -31,7 +31,7 @@ pub enum Nucleotide {
     N,
 }
 impl Nucleotide {
-    fn complement (self) -> Nucleotide {
+    fn complement(self) -> Nucleotide {
         match self {
             Nucleotide::A => Nucleotide::T,
             Nucleotide::T => Nucleotide::A,
@@ -61,10 +61,10 @@ impl TryFrom<u8> for Nucleotide {
             b'A' | b'a' => Ok(Nucleotide::A),
             b'T' | b't' => Ok(Nucleotide::T),
             b'G' | b'g' => Ok(Nucleotide::G),
-            b'C' | b'c'  => Ok(Nucleotide::C),
-            b'U' | b'u'  => Ok(Nucleotide::U),
+            b'C' | b'c' => Ok(Nucleotide::C),
+            b'U' | b'u' => Ok(Nucleotide::U),
             b'N' | b'n' => Ok(Nucleotide::U),
-            _ => Err("Invalide nucleotide base in sequence.")
+            _ => Err("Invalide nucleotide base in sequence."),
         }
     }
 }
@@ -83,61 +83,62 @@ impl Sequence for DnaSequence {
     type SeqType = DnaSequence;
 
     fn write_fasta(&self, path: &str) {
-        let out = format!("{}",self);
+        let out = format!("{}", self);
         let bytes = out.as_bytes();
         let mut buffer = File::create(path.to_string()).expect("Couldn't create file.");
         buffer
             .write_all(&bytes)
             .expect("Could not write fasta file.");
     }
-    fn complement_bytes (&self) -> DnaSequence {
-        let pairs = vec![[b'A', b'T'], [b'T', b'A'], [b'C', b'G'], [b'G', b'C'], [b'N', b'N']];
+    fn complement_bytes(&self) -> DnaSequence {
+        let pairs = vec![
+            [b'A', b'T'],
+            [b'T', b'A'],
+            [b'C', b'G'],
+            [b'G', b'C'],
+            [b'N', b'N'],
+        ];
         let complement = self
             .sequence
             .iter()
-            .filter_map(|base| {
-                pairs
-                    .iter()
-                    .find(|[l, _c]| l == base)
-                    .map(|[_l, c]| *c)
-            })
+            .filter_map(|base| pairs.iter().find(|[l, _c]| l == base).map(|[_l, c]| *c))
             .collect::<Vec<u8>>();
         DnaSequence::new(self.header.clone(), complement)
     }
-    fn complement_rusty (&self) -> DnaSequence {
+    fn complement_rusty(&self) -> DnaSequence {
         let complement = self
             .sequence
             .iter()
-            .map (|byte| Nucleotide::try_from(*byte)
-                .expect("Invalide sequence letter."))
-            .map (|nucl| nucl.complement().into())
+            .map(|byte| Nucleotide::try_from(*byte).expect("Invalide sequence letter."))
+            .map(|nucl| nucl.complement().into())
             .collect::<Vec<u8>>();
         DnaSequence::new(self.header.clone(), complement)
     }
-    fn reverse (&self) -> DnaSequence {
-        DnaSequence::new(self.header.clone(), self
-            .sequence
-            .iter()
-            .rev()
-            .map(|byte| *byte)
-            .collect::<Vec<u8>>() 
+    fn reverse(&self) -> DnaSequence {
+        DnaSequence::new(
+            self.header.clone(),
+            self.sequence
+                .iter()
+                .rev()
+                .map(|byte| *byte)
+                .collect::<Vec<u8>>(),
         )
     }
-    fn revcomp (&self) -> DnaSequence {
-        self
-            .reverse()
-            .complement_rusty()
+    fn revcomp(&self) -> DnaSequence {
+        self.reverse().complement_rusty()
     }
-    fn orfs (&self) -> () {
+    fn orfs(&self) -> () {
         let seq = self.sequence.clone();
-        let test = seq.chunks(3)
-            .map(|c| c.iter()
-                .map(|b| Nucleotide::try_from(*b).expect("bad byte"))
-                .map(|nucl| format!("{}", nucl))
-                .collect::<Vec<String>>())
+        let test = seq
+            .chunks(3)
+            .map(|c| {
+                c.iter()
+                    .map(|b| Nucleotide::try_from(*b).expect("bad byte"))
+                    .map(|nucl| format!("{}", nucl))
+                    .collect::<Vec<String>>()
+            })
             .collect::<Vec<Vec<String>>>();
         println!("{:?}", test);
-        
     }
 }
 #[derive(Clone)]
@@ -155,13 +156,10 @@ impl SequenceCollection for DnaSequenceVector {
         self.0.len()
     }
     fn from_fasta(fasta: File) -> DnaSequenceVector {
-        let mut collector: Vec<DnaSequence> = Vec::new(); 
-        let _pushall = parse_fasta(fasta)
-            .into_iter()
-            .for_each(|p| collector
-                .push( DnaSequence::new(p.0, p.1
-                    .into_bytes()
-                    .to_ascii_uppercase() ) ));
+        let mut collector: Vec<DnaSequence> = Vec::new();
+        let _pushall = parse_fasta(fasta).into_iter().for_each(|p| {
+            collector.push(DnaSequence::new(p.0, p.1.into_bytes().to_ascii_uppercase()))
+        });
         DnaSequenceVector(collector)
     }
 }
@@ -213,7 +211,7 @@ impl fmt::Display for DnaSequence {
             .sequence
             .iter()
             .map(|byte| Nucleotide::try_from(*byte).expect("Invalid sequence character"))
-            .map(|n| format!("{}",n))
+            .map(|n| format!("{}", n))
             .collect::<String>();
         write!(f, ">{}\n{}", self.header, sequence_string)
     }
@@ -224,7 +222,7 @@ impl fmt::Debug for DnaSequence {
             .sequence
             .iter()
             .map(|byte| Nucleotide::try_from(*byte).expect("Invalid sequence character"))
-            .map(|n| format!("{}",n))
+            .map(|n| format!("{}", n))
             .collect::<String>();
         write!(f, ">{}\n{}", self.header, sequence_string)
     }
