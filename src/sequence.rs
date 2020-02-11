@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::{self, BufReader};
+use std::io::BufReader;
 
 pub trait SequenceCollection {
     type SeqType;
@@ -12,6 +12,7 @@ pub trait SequenceCollection {
     fn new() -> Self::CollectionType;
     fn seqs(&self) -> &Vec<Self::SeqType>;
     fn nseqs(&self) -> usize;
+    fn header_filter_ref(self, header_vector: Vec<String>) -> Vec<&'a Self::SeqType>;
 }
 pub trait Sequence {
     type SeqType;
@@ -161,6 +162,17 @@ impl SequenceCollection for DnaSequenceVector {
             collector.push(DnaSequence::new(p.0, p.1.into_bytes().to_ascii_uppercase()))
         });
         DnaSequenceVector(collector)
+    }
+
+    fn header_filter_ref(&self, header_vector: Vec<String>) -> Vec<&DnaSequence> {
+        let ret: Vec<&DnaSequence>;
+        for s in self.seqs() {
+            if (s.header in header_vector.iter {
+                s.ret.push(&s)
+            }
+        }
+
+        ret
     }
 }
 // Generic fasta parser that doesn't care what kind of sequence is being read

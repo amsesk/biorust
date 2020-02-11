@@ -92,5 +92,5 @@ where
         Ok(file) => file,
         Err(e) => return Err(e),
     };
-    Ok(io::BufReader::new(file).lines())
+    Ok(io::BufReader::new(file).lines(p))
 }

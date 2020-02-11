@@ -1,6 +1,7 @@
 use std::fs::File;
 pub mod config;
 pub mod coverage_holes;
+mod lib;
 pub mod sequence;
 //use sequence::{Sequence, SequenceCollection};
 
