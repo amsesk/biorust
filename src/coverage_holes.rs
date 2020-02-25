@@ -1,8 +1,8 @@
+use crate::lib::read_lines;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead};
-use std::path::Path;
 
 pub fn main(sw_tsv_path: &str) {
     if let Ok(lines) = read_lines(sw_tsv_path) {
@@ -84,13 +84,3 @@ fn find_bounds_from_sliding_windows(
     Ok(ranges)
 }
 
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where
-    P: AsRef<Path>,
-{
-    let file = match File::open(filename) {
-        Ok(file) => file,
-        Err(e) => return Err(e),
-    };
-    Ok(io::BufReader::new(file).lines())
-}
