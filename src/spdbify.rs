@@ -1,12 +1,12 @@
 use crate::lib::read_lines;
 use crate::sequence::{DnaSequenceVector, SequenceCollection};
 use std::fs::File;
-use std::io::{self, BufRead};
 use std::path::Path;
 
-pub fn spdbify_fasta_headers(seqs: DnaSequenceVector, tag: &str) {
-    for s in seqs.seqs() {
-        println!("{} OS={}", s.header, tag)
+pub fn spdbify_fasta_headers(seqs: DnaSequenceVector, tag: String) {
+    for mut s in seqs.into_seqs() {
+        s.header = format!("{} OS={}", s.header, tag);
+        println!("{}", s);
     }
 }
 
@@ -22,7 +22,7 @@ where
     }
 }
 
-pub fn read_raw_map<'a, P>(map_path: P) -> (std::vec::IntoIter<File>, std::vec::IntoIter<&'a str>)
+pub fn read_raw_map<'a, P>(map_path: P) -> (std::vec::IntoIter<File>, std::vec::IntoIter<String>)
 where
     P: AsRef<Path>,
 {
@@ -31,19 +31,20 @@ where
 
     if let Ok(lines) = read_lines(map_path) {
         for line in lines {
-            let spl: Vec<&str> = line.unwrap().split("\t").collect();
+            let res = line.unwrap();
+            let spl: Vec<&str> = res.split("\t").collect();
             let f_open = File::open(&spl[1]).expect("Error opening file.");
             files.push(f_open);
-            tags.push(spl[0]);
+            tags.push(String::from(spl[0]));
         }
     }
     (files.into_iter(), tags.into_iter())
 }
 
-pub fn build_tag_map<'a, I, T>(files: I, tags: T) -> Vec<TagMapping<'a>>
+pub fn build_tag_map<I, T>(files: I, tags: T) -> Vec<TagMapping>
 where
     I: Iterator<Item = File>,
-    T: Iterator<Item = &'a str>,
+    T: Iterator<Item = String>,
 {
     let mut map = vec![];
     for (p, t) in files.zip(tags) {
@@ -53,13 +54,13 @@ where
     map
 }
 
-pub struct TagMapping<'a> {
+pub struct TagMapping {
     file: File,
-    tag: &'a str,
+    tag: String,
 }
 
-impl TagMapping<'_> {
-    fn new(file: File, tag: &str) -> TagMapping {
+impl TagMapping {
+    fn new(file: File, tag: String) -> TagMapping {
         TagMapping { file, tag }
     }
 }
