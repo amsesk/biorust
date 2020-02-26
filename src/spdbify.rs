@@ -1,5 +1,5 @@
 use crate::lib::read_lines;
-use crate::sequence::{DnaSequenceVector, SequenceCollection};
+use crate::lib::sequence::{DnaSequenceVector, SequenceCollection};
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::prelude::*;
