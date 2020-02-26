@@ -2,7 +2,6 @@ use std::fs::File;
 pub mod config;
 pub mod coverage_holes;
 pub mod lib;
-#[path = "sequence.rs"]
 pub mod sequence;
 pub mod spdbify;
 
