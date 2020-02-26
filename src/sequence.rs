@@ -11,6 +11,7 @@ pub trait SequenceCollection {
     fn from_fasta(fasta: File) -> Self::CollectionType;
     fn new() -> Self::CollectionType;
     fn seqs(&self) -> &Vec<Self::SeqType>;
+    fn into_seqs(self) -> Vec<Self::SeqType>;
     fn nseqs(&self) -> usize;
     //fn header_filter_ref(self, header_vector: Vec<String>) -> Vec<&Self::SeqType>;
 }
@@ -152,6 +153,9 @@ impl SequenceCollection for DnaSequenceVector {
     }
     fn seqs(&self) -> &Vec<DnaSequence> {
         &self.0
+    }
+    fn into_seqs(self) -> Vec<DnaSequence> {
+        self.0
     }
     fn nseqs(&self) -> usize {
         self.0.len()
