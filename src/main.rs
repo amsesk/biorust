@@ -15,7 +15,7 @@ fn main() {
 
     //let seqs = sequence::DnaSequenceVector::from_fasta(fasta);
 
-    spdbify::spdbify_proteomes(&args[1]);
+    spdbify::spdbify_proteomes(&args[1], &args[2]);
 
     //println!("{:?}", seqs.seqs()[801].sequence);
 }

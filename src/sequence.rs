@@ -4,6 +4,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::path::Path;
 
 pub trait SequenceCollection {
     type SeqType;
@@ -13,6 +14,9 @@ pub trait SequenceCollection {
     fn seqs(&self) -> &Vec<Self::SeqType>;
     fn into_seqs(self) -> Vec<Self::SeqType>;
     fn nseqs(&self) -> usize;
+    fn to_fasta<P>(&self, out_fasta: P)
+    where
+        P: AsRef<Path>;
     //fn header_filter_ref(self, header_vector: Vec<String>) -> Vec<&Self::SeqType>;
 }
 pub trait Sequence {
@@ -87,7 +91,7 @@ impl Sequence for DnaSequence {
     fn write_fasta(&self, path: &str) {
         let out = format!("{}", self);
         let bytes = out.as_bytes();
-        let mut buffer = File::create(path.to_string()).expect("Couldn't create file.");
+        let mut buffer = File::create(path).expect("Couldn't create file.");
         buffer
             .write_all(&bytes)
             .expect("Could not write fasta file.");
@@ -144,7 +148,7 @@ impl Sequence for DnaSequence {
     }
 }
 #[derive(Clone)]
-pub struct DnaSequenceVector(Vec<DnaSequence>);
+pub struct DnaSequenceVector(pub Vec<DnaSequence>);
 impl SequenceCollection for DnaSequenceVector {
     type SeqType = DnaSequence;
     type CollectionType = DnaSequenceVector;
@@ -166,6 +170,19 @@ impl SequenceCollection for DnaSequenceVector {
             collector.push(DnaSequence::new(p.0, p.1.into_bytes().to_ascii_uppercase()))
         });
         DnaSequenceVector(collector)
+    }
+    fn to_fasta<P>(&self, out_fasta: P)
+    where
+        P: AsRef<Path>,
+    {
+        let mut buffer = File::create(out_fasta).expect("Couldn't create file.");
+        for s in self.seqs() {
+            let out = format!("{}\n", s);
+            let bytes = out.as_bytes();
+            buffer
+                .write_all(&bytes)
+                .expect("Could not write fasta file.");
+        }
     }
     /*
         fn header_filter_ref(&self, header_vector: Vec<String>) -> Vec<&DnaSequence> {
